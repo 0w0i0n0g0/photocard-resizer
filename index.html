@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="logo.png">
+    <title>포토카드 규격 변환기</title>
+    <style>
+        /* Global Reset & Box Sizing */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f0f0;
+            min-height: 100vh; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* --- Main Content Container --- */
+        #main-content {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center; 
+        }
+
+        /* Consistent Container Styles */
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* ---------------------------------------------------------------------------------- */
+        /* --- Mobile Layout 순서 정의 (Default) --- */
+        /* 목표 순서: 업로드(1) → 캔버스(2) → 설정(3) */
+
+        #upload-area {
+            order: 1; 
+            padding: 20px;
+            border: 2px dashed #aaa;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px;
+            width: 100%;
+        }
+
+        #upload-area p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        #canvas-wrapper {
+            order: 2; 
+            width: 80%; /* --- [수정된 부분] 모바일 뷰에서 캔버스 크기 조정 --- */
+            display: flex;
+            justify-content: center;
+        }
+
+        #controls-group {
+            order: 3; 
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        /* 모바일 레이아웃 유지를 위해 right-panel은 없는 것처럼 처리 */
+        #right-panel {
+            display: contents;
+        }
+
+        #controlPanel {
+            display: block;
+            width: 100%;
+            padding: 24px;
+        }
+
+        #saveBtn {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+
+        #cardCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 400px;
+            cursor: move;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            touch-action: none;
+        }
+        
+        /* ---------------------------------------------------------------------------------- */
+        /* --- Desktop Layout (Min-width 850px) --- */
+        @media (min-width: 850px) {
+            body {
+                padding: 40px 20px;
+                justify-content: center; 
+            }
+
+            #main-content {
+                flex-direction: row; /* Desktop: Row layout */
+                justify-content: center;
+                align-items: flex-start;
+                gap: 40px;
+            }
+            
+            #canvas-wrapper {
+                order: unset;
+                width: 400px; /* 데스크탑 크기는 유지 */
+                flex-shrink: 0;
+            }
+            
+            #cardCanvas {
+                touch-action: auto; /* 데스크탑에서는 기본 터치 동작 허용 */
+            }
+
+            /* 우측 패널을 flex 컨테이너로 설정 */
+            #right-panel {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                width: 400px;
+                flex-shrink: 0;
+                height: 619px;
+            }
+
+            #upload-area {
+                order: unset;
+                flex-grow: 1; 
+            }
+
+            #controls-group {
+                order: unset;
+            }
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            width: 100%;
+        }
+        #scaleControls, #fineScaleControls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+        }
+        #fineScaleControls {
+            font-size: 14px;
+            color: #666;
+        }
+        #rotationGroup {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            width: 100%;
+        }
+        #rotationGroup button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            font-size: 18px;
+            border-radius: 50%;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+        #rotationGroup button:hover {
+            background-color: #1976D2;
+        }
+        #centerToggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+        }
+        #actionButtons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        #actionButtons button {
+            flex: 1;
+            padding: 10px 8px;
+            font-size: 13px;
+            border-radius: 8px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+        #actionButtons button:nth-child(1),
+        #actionButtons button:nth-child(2) {
+            background-color: #FF9800;
+        }
+        #actionButtons button:nth-child(1):hover,
+        #actionButtons button:nth-child(2):hover {
+            background-color: #F57C00;
+        }
+        #actionButtons button:nth-child(3) {
+            background-color: #2196F3;
+        }
+        #actionButtons button:nth-child(3):hover {
+            background-color: #1976D2;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            text-align: center;
+        }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 24px; border-radius: 16px; width: 90%; max-width: 500px; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .close { position: absolute; top: 12px; right: 16px; font-size: 24px; font-weight: bold; color: #aaa; cursor: pointer; }
+        .close:hover { color: #000; }
+    </style>
+</head>
+<body>
+    <div id="main-content">
+        
+        <div id="canvas-wrapper">
+            <canvas id="cardCanvas" width="390" height="600"></canvas>
+        </div>
+
+        <div id="right-panel">
+            <div id="upload-area" class="container">
+                <input type="file" id="fileInput" accept="image/*" hidden>
+                <p>이미지를 여기에 드래그하거나<br>클릭하여 업로드하세요.</p>
+            </div>
+
+            <div id="controls-group">
+                <div id="controlPanel" class="container">
+                    <div id="scaleSection" class="control-section">
+                        <div id="scaleControls">
+                            <label>배율 (%)</label>
+                            <input type="range" id="scaleRange" min="10" max="300" value="100">
+                            <input type="number" id="scaleInput" min="10" max="300" value="100">
+                        </div>
+                        <div id="fineScaleControls">
+                            <label>미세 조정</label>
+                            <input type="range" id="fineScaleRange" min="-1" max="1" value="0" step="0.01">
+                            <input type="number" id="fineScaleInput" min="-1" max="1" value="0" step="0.01">
+                        </div>
+                    </div>
+                    <div id="rotationGroup">
+                        <button id="rotateLeft" title="좌회전">↺</button>
+                        <label id="centerToggle">
+                            <input type="checkbox" id="centerLock"> 이미지 가운데 고정
+                        </label>
+                        <button id="rotateRight" title="우회전">↻</button>
+                    </div>
+                    <div id="actionButtons">
+                        <button id="resetScaleBtn">배율 초기화</button>
+                        <button id="resetPositionBtn">위치 초기화</button>
+                        <button id="helpBtn">사용법</button>
+                    </div>
+                </div>
+                <button id="saveBtn">이미지 저장</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>사용법 안내</h2>
+            <ul>
+                <li><strong>이미지 업로드:</strong> 상단 영역을 클릭하거나 이미지를 드래그하여 업로드하세요.</li>
+                <li><strong>이미지 이동:</strong> 마우스나 손가락으로 이미지를 끌어 위치를 조정할 수 있습니다. (가운데 고정 시 비활성화)</li>
+                <li><strong>마그네틱 스냅:</strong> 이미지 중앙이 캔버스 중앙선 근처에 가면 자석처럼 붙고 안내선이 표시됩니다.</li>
+                <li><strong>배율 조정:</strong> 슬라이더, 숫자, 마우스 휠, 또는 두 손가락으로 확대/축소(핀치 줌)하여 이미지 크기를 조절하세요.</li>
+                <li><strong>회전:</strong> 좌우 회전 버튼으로 이미지를 90도씩 회전할 수 있습니다.</li>
+                <li><strong>가운데 고정:</strong> 체크박스를 활성화하면 이미지가 항상 캔버스 중앙에 위치합니다.</li>
+                <li><strong>초기화:</strong> 각 초기화 버튼으로 배율과 위치를 기본값으로 되돌립니다.</li>
+                <li><strong>저장:</strong> "이미지 저장" 버튼을 누르면 고해상도 이미지가 PNG 형식으로 다운로드됩니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('cardCanvas');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('upload-area');
+        const scaleRange = document.getElementById('scaleRange');
+        const scaleInput = document.getElementById('scaleInput');
+        const fineScaleRange = document.getElementById('fineScaleRange');
+        const fineScaleInput = document.getElementById('fineScaleInput');
+        const resetScaleBtn = document.getElementById('resetScaleBtn');
+        const resetPositionBtn = document.getElementById('resetPositionBtn');
+        const centerLock = document.getElementById('centerLock');
+        const helpBtn = document.getElementById('helpBtn');
+        const closeModal = document.querySelector('.close');
+        const rotateLeft = document.getElementById('rotateLeft');
+        const rotateRight = document.getElementById('rotateRight');
+        const helpModal = document.getElementById('helpModal');
+        const saveBtn = document.getElementById('saveBtn');
+
+        const TARGET_WIDTH = 900;
+        const TARGET_HEIGHT = 1380;
+        
+        const displayWidth = canvas.width;
+        const displayHeight = canvas.height;
+
+        const guideInset = Math.round(10 * (displayWidth / TARGET_WIDTH)); 
+        
+        const targetRadius = 44;
+        const innerRadius = Math.round(targetRadius * (displayWidth / TARGET_WIDTH));
+
+        const innerX = guideInset;
+        const innerY = guideInset;
+        const innerW = displayWidth - (2 * guideInset);
+        const innerH = displayHeight - (2 * guideInset);
+
+        let img = null, dragging = false, offsetX = 0, offsetY = 0, imgX = 0, imgY = 0;
+        let displayScale = 1, baseScale = 0, fineScale = 0, rotation = 0, dashOffset = 0;
+        const snapThreshold = 10;
+        let isSnappedX = false, isSnappedY = false;
+        
+        let initialPinchDistance = 0;
+        let initialPinchScale = 1;
+
+        function drawInitialState() {
+            ctx.fillStyle = '#ddd';
+            ctx.beginPath();
+            ctx.roundRect(innerX, innerY, innerW, innerH, innerRadius);
+            ctx.fill();
+        }
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (file) loadImage(file);
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) loadImage(file);
+        }
+
+        function loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                img = new Image();
+                img.onload = () => {
+                    baseScale = Math.min(innerW / img.width, innerH / img.height);
+                    rotation = 0;
+                    applyScale(1, 0);
+                    updateScaleUI();
+                    updateFineUI();
+                    centerImage();
+                    draw();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function centerImage() {
+            if (!img) return;
+            const effectiveScale = displayScale + fineScale / 100;
+            const scaledW = img.width * baseScale * effectiveScale;
+            const scaledH = img.height * baseScale * effectiveScale;
+            imgX = canvas.width / 2 - scaledW / 2;
+            imgY = canvas.height / 2 - scaledH / 2;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (img) {
+                const effectiveScale = displayScale + fineScale / 100;
+                const scaledW = img.width * baseScale * effectiveScale;
+                const scaledH = img.height * baseScale * effectiveScale;
+                const centerX = imgX + scaledW / 2;
+                const centerY = imgY + scaledH / 2;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.drawImage(img, -scaledW / 2, -scaledH / 2, scaledW, scaledH);
+                ctx.restore();
+                
+                if (isSnappedX || isSnappedY) {
+                    ctx.strokeStyle = '#39FF14'; 
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([]);
+                    if (isSnappedX) {
+                        ctx.beginPath();
+                        ctx.moveTo(canvas.width / 2, 0);
+                        ctx.lineTo(canvas.width / 2, canvas.height);
+                        ctx.stroke();
+                    }
+                    if (isSnappedY) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, canvas.height / 2);
+                        ctx.lineTo(canvas.width, canvas.height / 2);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.save();
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.lineDashOffset = -dashOffset;
+                ctx.strokeStyle = 'black';
+                ctx.beginPath();
+                ctx.roundRect(innerX, innerY, innerW, innerH, innerRadius);
+                ctx.stroke();
+                ctx.strokeStyle = 'white';
+                ctx.lineDashOffset = -(dashOffset + 4);
+                ctx.beginPath();
+                ctx.roundRect(innerX, innerY, innerW, innerH, innerRadius);
+                ctx.stroke();
+                ctx.restore();
+            } else {
+                drawInitialState();
+            }
+        }
+
+        function applyScale(newDisplayScale, newFineScale) {
+            if (!img) return;
+            
+            const oldEffectiveScale = displayScale + fineScale / 100;
+            const oldW = img.width * baseScale * oldEffectiveScale;
+            const oldH = img.height * baseScale * oldEffectiveScale;
+
+            displayScale = newDisplayScale;
+            fineScale = newFineScale;
+            
+            const newEffectiveScale = displayScale + fineScale / 100;
+            const newW = img.width * baseScale * newEffectiveScale;
+            const newH = img.height * baseScale * newEffectiveScale;
+
+            imgX -= (newW - oldW) / 2;
+            imgY -= (newH - oldH) / 2;
+
+            if (centerLock.checked) centerImage();
+            draw();
+        }
+
+        function updateScaleUI() {
+            const val = Math.round(displayScale * 100);
+            scaleRange.value = val;
+            scaleInput.value = val;
+        }
+
+        function updateFineUI() {
+            fineScaleRange.value = fineScale;
+            fineScaleInput.value = fineScale;
+        }
+
+        function resetAll() {
+            img = null;
+            fileInput.value = '';
+            centerLock.checked = false;
+            applyScale(1, 0);
+            updateScaleUI();
+            updateFineUI();
+            draw();
+        }
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFile);
+        uploadArea.addEventListener('dragover', e => e.preventDefault());
+        uploadArea.addEventListener('drop', handleDrop);
+
+        centerLock.addEventListener('change', () => {
+            if (centerLock.checked) {
+                centerImage();
+                draw();
+            }
+        });
+
+        const rotate = (angle) => {
+            if (!img) return;
+            rotation = (rotation + angle + 360) % 360;
+            if (centerLock.checked) centerImage();
+            draw();
+        };
+        rotateLeft.addEventListener('click', () => rotate(-90));
+        rotateRight.addEventListener('click', () => rotate(90));
+
+        resetScaleBtn.addEventListener('click', () => {
+            if (!img) return;
+            applyScale(1, 0);
+            updateScaleUI();
+            updateFineUI();
+        });
+
+        resetPositionBtn.addEventListener('click', () => {
+            if (!img) return;
+            centerImage();
+            draw();
+        });
+
+        function handleMove(clientX, clientY) {
+            if (!dragging || centerLock.checked || !img) return;
+
+            let newImgX = clientX - offsetX;
+            let newImgY = clientY - offsetY;
+
+            const effectiveScale = displayScale + fineScale / 100;
+            const scaledW = img.width * baseScale * effectiveScale;
+            const scaledH = img.height * baseScale * effectiveScale;
+            const imgCenterX = newImgX + scaledW / 2;
+            const imgCenterY = newImgY + scaledH / 2;
+
+            isSnappedX = Math.abs(imgCenterX - canvas.width / 2) < snapThreshold;
+            isSnappedY = Math.abs(imgCenterY - canvas.height / 2) < snapThreshold;
+
+            if (isSnappedX) newImgX = canvas.width / 2 - scaledW / 2;
+            if (isSnappedY) newImgY = canvas.height / 2 - scaledH / 2;
+            
+            imgX = newImgX;
+            imgY = newImgY;
+            draw();
+        }
+
+        const endDrag = () => {
+            dragging = false;
+            initialPinchDistance = 0; 
+            if (isSnappedX || isSnappedY) {
+                isSnappedX = false;
+                isSnappedY = false;
+                draw();
+            }
+        };
+        
+        canvas.addEventListener('mousedown', e => {
+            if (centerLock.checked || !img) return;
+            dragging = true;
+            offsetX = e.offsetX - imgX;
+            offsetY = e.offsetY - imgY;
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            handleMove(e.offsetX, e.offsetY);
+        });
+        canvas.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('mouseleave', endDrag);
+
+        function getTouchPos(canvas, touch) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+        }
+
+        function getDistance(p1, p2) {
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        canvas.addEventListener('touchstart', e => {
+            if (centerLock.checked || !img) return;
+            e.preventDefault();
+            const touches = e.touches;
+
+            if (touches.length === 1) { 
+                const pos = getTouchPos(canvas, touches[0]);
+                dragging = true;
+                offsetX = pos.x - imgX;
+                offsetY = pos.y - imgY;
+            } else if (touches.length === 2) { 
+                dragging = false; 
+                const pos1 = getTouchPos(canvas, touches[0]);
+                const pos2 = getTouchPos(canvas, touches[1]);
+                initialPinchDistance = getDistance(pos1, pos2);
+                initialPinchScale = displayScale;
+            }
+        });
+
+        canvas.addEventListener('touchmove', e => {
+            if (centerLock.checked || !img) return;
+            e.preventDefault();
+            const touches = e.touches;
+
+            if (touches.length === 1 && dragging) { 
+                const pos = getTouchPos(canvas, touches[0]);
+                handleMove(pos.x, pos.y);
+            } else if (touches.length === 2 && initialPinchDistance > 0) { 
+                const pos1 = getTouchPos(canvas, touches[0]);
+                const pos2 = getTouchPos(canvas, touches[1]);
+                const newDistance = getDistance(pos1, pos2);
+                
+                const scaleFactor = newDistance / initialPinchDistance;
+                let newDisplayScale = initialPinchScale * scaleFactor;
+                newDisplayScale = Math.min(3, Math.max(0.1, newDisplayScale)); 
+                
+                applyScale(newDisplayScale, fineScale);
+                updateScaleUI();
+            }
+        });
+        
+        canvas.addEventListener('touchend', endDrag);
+        canvas.addEventListener('touchcancel', endDrag);
+
+        canvas.addEventListener('wheel', e => {
+            if (!img) return;
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.05 : -0.05;
+            const newDisplayScale = Math.min(3, Math.max(0.1, displayScale + delta));
+            applyScale(newDisplayScale, fineScale);
+            updateScaleUI();
+        });
+
+        scaleRange.addEventListener('input', () => {
+            const val = parseFloat(scaleRange.value) / 100;
+            scaleInput.value = scaleRange.value;
+            applyScale(val, fineScale);
+        });
+
+        scaleInput.addEventListener('input', () => {
+            let val = parseFloat(scaleInput.value);
+            if (isNaN(val)) return;
+            val = Math.min(300, Math.max(10, val)); 
+            scaleInput.value = val;
+            scaleRange.value = val;
+            applyScale(val / 100, fineScale);
+        });
+
+        fineScaleRange.addEventListener('input', () => {
+            const val = parseFloat(fineScaleRange.value);
+            fineScaleInput.value = val;
+            applyScale(displayScale, val);
+        });
+
+        fineScaleInput.addEventListener('input', () => {
+            let val = parseFloat(fineScaleInput.value);
+            if (isNaN(val)) return;
+            val = Math.min(1, Math.max(-1, val)); 
+            fineScaleInput.value = val;
+            fineScaleRange.value = val;
+            applyScale(displayScale, val);
+        });
+
+        saveBtn.addEventListener('click', () => {
+            if(!img) {
+                alert("저장할 이미지가 없습니다. 먼저 이미지를 업로드해주세요.");
+                return;
+            }
+
+            const tempW = 900;
+            const tempH = 1380;
+
+            const fullMargin = 32; 
+            const fullCardW = tempW - (2 * fullMargin);
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = tempW;
+            tempCanvas.height = tempH;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            const saveScaleFactor = fullCardW / innerW;
+            const effectiveScale = displayScale + fineScale / 100;
+            
+            const scaledImgX = (imgX - innerX) * saveScaleFactor + fullMargin;
+            const scaledImgY = (imgY - innerY) * saveScaleFactor + fullMargin;
+            
+            const scaledW = img.width * baseScale * effectiveScale * saveScaleFactor;
+            const scaledH = img.height * baseScale * effectiveScale * saveScaleFactor;
+            const centerX = scaledImgX + scaledW / 2;
+            const centerY = scaledImgY + scaledH / 2;
+            
+            tempCtx.save();
+            tempCtx.translate(centerX, centerY);
+            tempCtx.rotate(rotation * Math.PI / 180);
+            tempCtx.drawImage(img, -scaledW / 2, -scaledH / 2, scaledW, scaledH);
+            tempCtx.restore();
+
+            const link = document.createElement('a');
+            link.download = 'photoplay-card.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+
+            resetAll();
+        });
+
+        helpBtn.addEventListener('click', () => { helpModal.style.display = 'block'; });
+        closeModal.addEventListener('click', () => { helpModal.style.display = 'none'; });
+        window.addEventListener('click', e => { if (e.target === helpModal) helpModal.style.display = 'none'; });
+
+        function animateBorder() {
+            if (img) {
+                dashOffset = (dashOffset + 0.2) % 16;
+                draw();
+            }
+            requestAnimationFrame(animateBorder);
+        }
+
+        animateBorder();
+        drawInitialState();
+    </script>
+</body>
+</html>
+
